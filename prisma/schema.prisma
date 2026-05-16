@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Post {
+  id         String   @id @default(uuid())
+  identity   String   // 学长 / 学姐
+  mbti       String
+  major      String
+  school     String?
+  grade      String?
+  content    String
+  scores     String   // JSON string
+  likeCount  Int      @default(0) @map("like_count")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("posts")
+}
+
+model AnalyticsEvent {
+  id           String   @id @default(uuid()) @map("event_id")
+  eventName    String   @map("event_name")
+  anonymousId  String   @map("anonymous_id")
+  sessionId    String   @map("session_id")
+  timestamp    DateTime @default(now())
+  page         String
+  properties   String?  // JSON string
+
+  @@map("analytics_events")
+}
