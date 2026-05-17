@@ -78,20 +78,62 @@ export async function createPost(input: CreatePostInput): Promise<Post> {
   return dbPostToPost(row);
 }
 
-export async function likePost(id: string): Promise<Post | null> {
-  const row = await prisma.post.update({
-    where: { id },
-    data: { likeCount: { increment: 1 } },
+export async function likePost(
+  postId: string,
+  anonymousId: string
+): Promise<{ post: Post; alreadyLiked: boolean }> {
+  const existing = await prisma.like.findUnique({
+    where: { postId_anonymousId: { postId, anonymousId } },
   });
-  return dbPostToPost(row);
+  if (existing) {
+    const post = await prisma.post.findUnique({ where: { id: postId } });
+    return { post: dbPostToPost(post!), alreadyLiked: true };
+  }
+
+  const [, post] = await prisma.$transaction([
+    prisma.like.create({ data: { postId, anonymousId } }),
+    prisma.post.update({
+      where: { id: postId },
+      data: { likeCount: { increment: 1 } },
+    }),
+  ]);
+  return { post: dbPostToPost(post), alreadyLiked: false };
 }
 
-export async function unlikePost(id: string): Promise<Post | null> {
-  const row = await prisma.post.update({
-    where: { id },
-    data: { likeCount: { decrement: 1 } },
+export async function unlikePost(
+  postId: string,
+  anonymousId: string
+): Promise<{ post: Post; alreadyUnliked: boolean }> {
+  const existing = await prisma.like.findUnique({
+    where: { postId_anonymousId: { postId, anonymousId } },
   });
-  return dbPostToPost(row);
+  if (!existing) {
+    const post = await prisma.post.findUnique({ where: { id: postId } });
+    return { post: dbPostToPost(post!), alreadyUnliked: true };
+  }
+
+  const [, post] = await prisma.$transaction([
+    prisma.like.delete({
+      where: { postId_anonymousId: { postId, anonymousId } },
+    }),
+    prisma.post.update({
+      where: { id: postId },
+      data: { likeCount: { decrement: 1 } },
+    }),
+  ]);
+  return { post: dbPostToPost(post), alreadyUnliked: false };
+}
+
+export async function getLikedPostIds(
+  anonymousId: string,
+  postIds: string[]
+): Promise<Set<string>> {
+  if (!anonymousId || postIds.length === 0) return new Set();
+  const likes = await prisma.like.findMany({
+    where: { anonymousId, postId: { in: postIds } },
+    select: { postId: true },
+  });
+  return new Set(likes.map((l) => l.postId));
 }
 
 export async function getPostCount(filters?: {

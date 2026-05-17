@@ -35,9 +35,13 @@ export default function SharePage() {
   const firstInputTimeRef = useRef<number | null>(null);
   const pageLoadTimeRef = useRef<number>(Date.now());
   const textStartedRef = useRef(false);
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     initAnalytics();
+    trackEvent("share_entry_click", "/share", {
+      from_page: document.referrer || "direct",
+    });
     trackEvent("publish_page_view", "/share", {
       from_page: document.referrer || "direct",
       referrer: document.referrer,
@@ -126,8 +130,10 @@ export default function SharePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submittingRef.current || submitted) return;
     if (!validate()) return;
 
+    submittingRef.current = true;
     setSubmitting(true);
 
     const payload = {
@@ -182,9 +188,11 @@ export default function SharePage() {
         setTimeout(() => router.push("/"), 2000);
       } else {
         const data = await res.json();
+        submittingRef.current = false;
         setErrors({ submit: data.error || "发布失败" });
       }
     } catch {
+      submittingRef.current = false;
       setErrors({ submit: "网络错误，请重试" });
     } finally {
       setSubmitting(false);

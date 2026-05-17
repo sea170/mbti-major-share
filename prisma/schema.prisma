@@ -20,7 +20,21 @@ model Post {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
+  likes Like[]
+
   @@map("posts")
+}
+
+model Like {
+  id          String   @id @default(uuid())
+  postId      String   @map("post_id")
+  anonymousId String   @map("anonymous_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, anonymousId])
+  @@map("likes")
 }
 
 model AnalyticsEvent {

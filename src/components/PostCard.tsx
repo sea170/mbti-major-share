@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import type { Post } from "@/types";
 import { CORE_SCORE_KEYS, SCORE_LABELS } from "@/types";
 import ScoreBar from "./ScoreBar";
@@ -14,15 +13,11 @@ interface PostCardProps {
 }
 
 export default function PostCard({ post, onLike, onClick, rank }: PostCardProps) {
-  const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(post.likeCount);
+  const liked = post.liked ?? false;
 
   const handleLike = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const newLiked = !liked;
-    setLiked(newLiked);
-    setLikeCount((c) => c + (newLiked ? 1 : -1));
-    onLike?.(post.id, newLiked);
+    onLike?.(post.id, !liked);
   };
 
   const handleCardClick = () => {
@@ -100,7 +95,7 @@ export default function PostCard({ post, onLike, onClick, rank }: PostCardProps)
           >
             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
           </svg>
-          <span>{likeCount}</span>
+          <span>{post.likeCount}</span>
         </button>
         <span className="text-xs text-[var(--color-text-secondary)] italic opacity-60">
           点击查看详情

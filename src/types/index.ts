@@ -30,6 +30,7 @@ export interface Post {
   content: string;
   scores: PostScores;
   likeCount: number;
+  liked?: boolean;
   createdAt: string;
   updatedAt: string;
 }

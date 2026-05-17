@@ -23,8 +23,8 @@ export default function HomePage() {
   const [sort, setSort] = useState<SortType>("hot");
   const [loading, setLoading] = useState(true);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-  const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
 
+  const anonymousIdRef = useRef<string>("");
   const durationRef = useRef<DurationTracker | null>(null);
   const scrollRef = useRef<ScrollDepthTracker | null>(null);
   const exposeSetRef = useRef<Set<string>>(new Set());
@@ -34,7 +34,8 @@ export default function HomePage() {
   const hasMbtiFilterRef = useRef(false);
 
   useEffect(() => {
-    initAnalytics();
+    const { anonymousId } = initAnalytics();
+    anonymousIdRef.current = anonymousId;
     trackEvent("home_view", "/");
 
     durationRef.current = new DurationTracker();
@@ -64,11 +65,22 @@ export default function HomePage() {
     if (mbti) params.set("mbti", mbti);
     if (major) params.set("major", major);
     params.set("sort", sort);
+    params.set("anonymousId", anonymousIdRef.current);
 
     try {
       const res = await fetch(`/api/posts?${params}`);
       const data = await res.json();
-      setPosts(data.posts || []);
+      const fetchedPosts = data.posts || [];
+      setPosts(fetchedPosts);
+
+      // Track search with actual result count
+      if (major) {
+        trackEvent("search_major", "/", {
+          keyword: major,
+          result_count: fetchedPosts.length,
+          mbti_filter: mbti || null,
+        });
+      }
     } catch {
       setPosts([]);
     } finally {
@@ -130,10 +142,6 @@ export default function HomePage() {
   const handleMajorChange = (value: string) => {
     setMajor(value);
     if (value) hasSearchedRef.current = true;
-    trackEvent("search_major", "/", {
-      keyword: value,
-      mbti_filter: mbti || null,
-    });
   };
 
   const handleSortChange = (value: SortType) => {
@@ -150,16 +158,35 @@ export default function HomePage() {
       like_status: liked ? "like" : "unlike",
       is_login: false,
     });
-    setLikedIds((prev) => {
-      const next = new Set(prev);
-      if (liked) next.add(postId);
-      else next.delete(postId);
-      return next;
-    });
+
+    // Optimistic update
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId
+          ? {
+              ...p,
+              liked,
+              likeCount: p.likeCount + (liked ? 1 : -1),
+            }
+          : p
+      )
+    );
+
+    // Sync selectedPost
+    setSelectedPost((prev) =>
+      prev && prev.id === postId
+        ? {
+            ...prev,
+            liked,
+            likeCount: prev.likeCount + (liked ? 1 : -1),
+          }
+        : prev
+    );
+
     fetch(`/api/posts/${postId}/like`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ liked }),
+      body: JSON.stringify({ liked, anonymousId: anonymousIdRef.current }),
     }).catch(() => {});
   };
 
@@ -240,10 +267,8 @@ export default function HomePage() {
           post={selectedPost}
           onClose={handleCloseModal}
           onLike={handleLike}
-          liked={likedIds.has(selectedPost.id)}
-          likeCount={
-            selectedPost.likeCount + (likedIds.has(selectedPost.id) ? 1 : 0)
-          }
+          liked={selectedPost.liked ?? false}
+          likeCount={selectedPost.likeCount}
         />
       )}
 

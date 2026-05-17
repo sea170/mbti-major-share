@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPosts, createPost, getPostCount } from "@/lib/data/posts";
+import { getPosts, createPost, getPostCount, getLikedPostIds } from "@/lib/data/posts";
 import type { SortType } from "@/types";
 
 export async function GET(req: NextRequest) {
@@ -9,13 +9,24 @@ export async function GET(req: NextRequest) {
   const sort = (searchParams.get("sort") || "hot") as SortType;
   const limit = parseInt(searchParams.get("limit") || "50", 10);
   const offset = parseInt(searchParams.get("offset") || "0", 10);
+  const anonymousId = searchParams.get("anonymousId") || "";
 
   const [posts, total] = await Promise.all([
     getPosts({ mbti, major, sort, limit, offset }),
     getPostCount({ mbti, major }),
   ]);
 
-  return NextResponse.json({ posts, total });
+  const likedIds = await getLikedPostIds(
+    anonymousId,
+    posts.map((p) => p.id)
+  );
+
+  const postsWithLikeStatus = posts.map((post) => ({
+    ...post,
+    liked: likedIds.has(post.id),
+  }));
+
+  return NextResponse.json({ posts: postsWithLikeStatus, total });
 }
 
 export async function POST(req: NextRequest) {

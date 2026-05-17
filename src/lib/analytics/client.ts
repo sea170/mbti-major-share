@@ -166,15 +166,30 @@ export class WritingTracker {
 
 export class ScrollDepthTracker {
   private maxDepth: number = 0;
+  private target: Element | Window;
 
-  constructor() {
+  constructor(target?: Element) {
+    this.target = target || window;
     this.handleScroll = this.handleScroll.bind(this);
-    window.addEventListener("scroll", this.handleScroll, { passive: true });
+    this.target.addEventListener("scroll", this.handleScroll, {
+      passive: true,
+    } as AddEventListenerOptions);
   }
 
   private handleScroll() {
-    const scrollTop = window.scrollY;
-    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    let scrollTop: number;
+    let docHeight: number;
+
+    if (this.target === window) {
+      scrollTop = window.scrollY;
+      docHeight =
+        document.documentElement.scrollHeight - window.innerHeight;
+    } else {
+      const el = this.target as Element;
+      scrollTop = el.scrollTop;
+      docHeight = el.scrollHeight - el.clientHeight;
+    }
+
     if (docHeight > 0) {
       const depth = Math.round((scrollTop / docHeight) * 100);
       if (depth > this.maxDepth) this.maxDepth = depth;
@@ -186,6 +201,6 @@ export class ScrollDepthTracker {
   }
 
   destroy() {
-    window.removeEventListener("scroll", this.handleScroll);
+    this.target.removeEventListener("scroll", this.handleScroll);
   }
 }

@@ -5,6 +5,11 @@ import type { Post } from "@/types";
 import { SCORE_LABELS } from "@/types";
 import ScoreBar from "./ScoreBar";
 import { formatDate } from "@/lib/utils";
+import {
+  trackEvent,
+  DurationTracker,
+  ScrollDepthTracker,
+} from "@/lib/analytics/client";
 
 interface PostDetailModalProps {
   post: Post;
@@ -22,6 +27,7 @@ export default function PostDetailModal({
   likeCount,
 }: PostDetailModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
+  const articleRef = useRef<HTMLElement>(null);
   const currentLikes = likeCount ?? post.likeCount;
 
   useEffect(() => {
@@ -31,11 +37,39 @@ export default function PostDetailModal({
     document.addEventListener("keydown", handleEsc);
     document.body.style.overflow = "hidden";
 
+    // Analytics
+    trackEvent("detail_page_view", "/detail", {
+      post_id: post.id,
+      mbti: post.mbti,
+      major: post.major,
+      identity: post.identity,
+    });
+
+    const duration = new DurationTracker();
+    const scroll = articleRef.current
+      ? new ScrollDepthTracker(articleRef.current)
+      : null;
+
     return () => {
       document.removeEventListener("keydown", handleEsc);
       document.body.style.overflow = "";
+
+      const activeMs = duration.getActiveMs();
+      const maxDepth = scroll ? scroll.getMaxDepth() : 0;
+
+      trackEvent("detail_read_complete", "/detail", {
+        post_id: post.id,
+        mbti: post.mbti,
+        major: post.major,
+        active_duration_ms: activeMs,
+        max_scroll_depth: maxDepth,
+        is_effective_read: activeMs >= 15000 || maxDepth >= 60,
+      });
+
+      duration.destroy();
+      scroll?.destroy();
     };
-  }, [onClose]);
+  }, [onClose, post.id, post.mbti, post.major, post.identity]);
 
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === overlayRef.current) onClose();
@@ -51,6 +85,7 @@ export default function PostDetailModal({
       style={{ backgroundColor: "rgba(31, 27, 24, 0.4)", backdropFilter: "blur(2px)" }}
     >
       <article
+        ref={articleRef}
         className="relative w-full max-w-[640px] max-h-[85vh] overflow-y-auto bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg shadow-lg"
         style={{ animation: "modalIn 200ms ease-out" }}
       >
