@@ -1,8 +1,10 @@
 node_modules/
 .next/
+.env
 .env.local
 prisma/dev.db
 prisma/dev.db-journal
 out/
 tsconfig.tsbuildinfo
 .claude/
+.vercel

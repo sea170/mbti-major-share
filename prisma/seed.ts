@@ -4,6 +4,12 @@ import { MOCK_POSTS } from "../src/lib/data/mock";
 const prisma = new PrismaClient();
 
 async function main() {
+  if (process.env.ALLOW_MOCK_SEED !== "true") {
+    throw new Error(
+      "Refusing to seed mock data. Set ALLOW_MOCK_SEED=true only for local demo data."
+    );
+  }
+
   await prisma.post.deleteMany();
   await prisma.analyticsEvent.deleteMany();
 
